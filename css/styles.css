@@ -896,4 +896,18 @@ iframe {
     width: 100%;
     border: none;
     border-radius: 10px;
+
 }
+
+/*contador*/
+
+.contador {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
