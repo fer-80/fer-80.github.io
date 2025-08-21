@@ -73,4 +73,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     window.addEventListener('scroll', animateOnScroll);
     animateOnScroll(); // Ejecutar una vez al cargar
+
 })
+
+// Contador de visitas
+        function actualizarContador() {
+            let contador = localStorage.getItem('visitas');
+            
+            if (contador === null) {
+                contador = 1;
+            } else {
+                contador = parseInt(contador) + 1;
+            }
+            
+            localStorage.setItem('visitas', contador);
+            document.getElementById('contador').textContent = contador;
+        }
+
+        // Ejecutar cuando la página cargue
+        window.addEventListener('load', actualizarContador);
