@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catálogo de Equipos y Materiales por Kilo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+  body {
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    min-height: 100vh;
+    padding: 15px;
+    color: #333;
+  }
+  .container {
+    max-width: 1300px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
+  header {
+    background: #1e3c72;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+  }
+  header h1 { font-size: 1.5rem; }
+  header p { font-size: 0.9rem; opacity: 0.85; margin-top: 5px; }
+
+  /* Pestañas */
+  .tabs {
+    display: flex;
+    background: #2a5298;
+    border-bottom: 3px solid #1e3c72;
+    flex-wrap: wrap;
+  }
+  .tab {
+    flex: 1;
+    padding: 15px 10px;
+    text-align: center;
+    color: #cbd8f0;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+    min-width: 160px;
+  }
+  .tab:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .tab.active {
+    background: #fff;
+    color: #1e3c72;
+    border-bottom: 3px solid #fff;
+    margin-bottom: -3px;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Dashboard */
+  .dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    padding: 15px;
+    background: #f4f6f9;
+    border-bottom: 1px solid #ddd;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    border-left: 4px solid #2a5298;
+  }
+  .stat-card h4 { font-size: 0.72rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .value { font-size: 1.25rem; font-weight: 700; color: #1e3c72; margin-top: 4px; }
+  .stat-card.verde { border-left-color: #28a745; }
+  .stat-card.verde .value { color: #28a745; }
+  .stat-card.naranja { border-left-color: #f0ad4e; }
+  .stat-card.naranja .value { color: #d68910; }
+  .stat-card.morado { border-left-color: #6f42c1; }
+  .stat-card.morado .value { color: #6f42c1; }
+  .stat-card.rojo { border-left-color: #dc3545; }
+  .stat-card.rojo .value { color: #dc3545; }
+
+  /* Barra de herramientas */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px;
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+  }
+  .toolbar input[type="text"], .toolbar select {
+    padding: 10px 14px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #fff;
+  }
+  .toolbar input[type="text"] { flex: 1; min-width: 180px; }
+  .toolbar input[type="text"]:focus, .toolbar select:focus {
+    outline: none;
+    border-color: #2a5298;
+  }
+  .btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.2s;
+    color: #fff;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+  .btn-primary { background: #2a5298; }
+  .btn-success { background: #28a745; }
+  .btn-warning { background: #f0ad4e; }
+  .btn-danger  { background: #dc3545; }
+  .btn-info    { background: #17a2b8; }
+  .btn-secondary { background: #6c757d; }
+
+  /* Formulario */
+  .form-section {
+    padding: 20px;
+    background: #fafbfc;
+    border-bottom: 1px solid #eee;
+    display: none;
+  }
+  .form-section.active { display: block; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+  .form-group { display: flex; flex-direction: column; }
+  .form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #555;
+  }
+  .form-group input, .form-group select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+    background: #fff;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: #2a5298;
+    box-shadow: 0 0 5px rgba(42,82,152,0.3);
+  }
+  .form-group input[readonly] { background: #eef3ff; color: #1e3c72; font-weight: 600; }
+  .form-actions {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .precio-hint {
+    font-size: 0.75rem;
+    color: #d68910;
+    margin-top: 3px;
+    font-weight: 600;
+  }
+
+  /* Tabla */
+  .table-wrapper {
+    padding: 15px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  th, td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+  th {
+    background: #1e3c72;
+    color: #fff;
+    position: sticky;
+    top: 0;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  tr:hover { background: #f5f8ff; }
+  .empty-msg {
+    text-align: center;
+    padding: 30px;
+    color: #888;
+    font-style: italic;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+  .badge.ram { background: #fff3cd; color: #856404; }
+  .badge.ssd { background: #d4edda; color: #155724; }
+  .badge.placa { background: #e3f2fd; color: #1565c0; }
+  .badge.compra { background: #cfe2ff; color: #084298; }
+  .badge.venta { background: #d1e7dd; color: #0f5132; }
+
+  .precio { font-weight: 700; color: #28a745; white-space: nowrap; }
+  .total  { font-weight: 700; color: #1e3c72; white-space: nowrap; }
+
+  tfoot td {
+    background: #eef3ff;
+    font-weight: 700;
+    color: #1e3c72;
+    font-size: 0.95rem;
+    border-top: 2px solid #1e3c72;
+  }
+
+  /* Responsive */
+  @media (max-width: 800px) {
+    header h1 { font-size: 1.15rem; }
+    .tab { min-width: 100%; }
+    .toolbar { flex-direction: column; }
+    .toolbar input, .toolbar select, .toolbar .btn { width: 100%; }
+    table, thead, tbody, tfoot, th, td, tr { display: block; }
+    thead tr { display: none; }
+    tfoot { display: none; }
+    tr {
+      margin-bottom: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    td {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border: none;
+      border-bottom: 1px dashed #eee;
+      font-size: 0.88rem;
+    }
+    td:last-child { border-bottom: none; }
+    td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: #555;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #28a745;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s;
+    z-index: 999;
+    max-width: 90%;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { background: #dc3545; }
+  .toast.info { background: #17a2b8; }
+
+  .info-banner {
+    background: #e3f2fd;
+    color: #1565c0;
+    padding: 12px 18px;
+    border-left: 4px solid #2a5298;
+    margin: 15px;
+    border-radius: 6px;
+    font-size: 0.88rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>📦 Catálogo de Equipos y Materiales por Kilo</h1>
+    <p>Consulta de placas, RAM y SSD · Compras y ventas por kilo (MXN)</p>
+    <P>SISCOMEX</P>
+  </header>
+
+  <!-- Pestañas -->
+  <div class="tabs">
+    <button class="tab active" onclick="cambiarTab(event, 'tabEquipos')">📱 Catálogo de Equipos</button>
+    <button class="tab" onclick="cambiarTab(event, 'tabKilos')">⚖️ Compras y Ventas por Kilo</button>
+  </div>
+
+  <!-- ============================================================
+       MÓDULO 1: CATÁLOGO DE EQUIPOS (SOLO CONSULTA)
+       ============================================================ -->
+  <div id="tabEquipos" class="tab-content active">
+    <div class="info-banner">
+      📘 <strong>Módulo de consulta:</strong> aquí solo se registran los datos técnicos del equipo (placa, RAM o SSD) para poder buscarlos después por su código.
+    </div>
+
+    <div class="dashboard">
+      <div class="stat-card">
+        <h4>📱 Placas</h4>
+        <div class="value" id="statPlacas">0</div>
+      </div>
+      <div class="stat-card naranja">
+        <h4>🧠 Memorias RAM</h4>
+        <div class="value" id="statRam">0</div>
+      </div>
+      <div class="stat-card morado">
+        <h4>💾 Discos SSD</h4>
+        <div class="value" id="statSsd">0</div>
+      </div>
+      <div class="stat-card verde">
+        <h4>📋 Total de Equipos</h4>
+        <div class="value" id="statTotalEq">0</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="busquedaEq" placeholder="🔍 Buscar por código, procesador, marca, modelo..." oninput="filtrarEquipos()" />
+      <select id="filtroCategoriaEq" onchange="filtrarEquipos()">
+        <option value="">Todas las categorías</option>
+        <option value="Placa Celular">📱 Placas Celular</option>
+        <option value="Memoria RAM">🧠 Memoria RAM</option>
+        <option value="Disco SSD">💾 Disco SSD</option>
+      </select>
+      <button class="btn btn-secondary" onclick="limpiarFiltrosEquipos()">Limpiar</button>
+      <button class="btn btn-success" onclick="toggleFormEquipos()">➕ Nuevo</button>
+      <button class="btn btn-info" onclick="exportarBackup('equipos')">💾 Backup</button>
+      <button class="btn btn-warning" onclick="document.getElementById('fileEq').click()">📂 Restaurar</button>
+      <input type="file" id="fileEq" accept=".json" style="display:none" onchange="importarBackup(event, 'equipos')" />
+    </div>
+
+    <div class="form-section" id="formEquipos">
+      <h3 id="formTitleEq" style="margin-bottom:12px; color:#1e3c72;">Nuevo Equipo</h3>
+      <form onsubmit="guardarEquipo(event)">
+        <input type="hidden" id="editIdEq" />
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="categoriaEq">Categoría *</label>
+            <select id="categoriaEq" required onchange="alCambiarCategoriaEq()">
+              <option value="Placa Celular">📱 Placa Celular</option>
+              <option value="Memoria RAM">🧠 Memoria RAM</option>
+              <option value="Disco SSD">💾 Disco SSD</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="codigoEq">Código *</label>
+            <input type="text" id="codigoEq" required placeholder="Ej: PL-001" />
+          </div>
+          <div class="form-group">
+            <label for="capacidadEq">Capacidad (GB) *</label>
+            <input type="number" id="capacidadEq" required min="1" step="1" placeholder="Ej: 128" />
+            <div class="precio-hint" id="precioHintEq"></div>
+          </div>
+          <div class="form-group">
+            <label for="ramEq">RAM (GB)</label>
+            <input type="number" id="ramEq" min="0" step="1" placeholder="Ej: 6 (solo placas)" />
+          </div>
+          <div class="form-group">
+            <label for="procesadorEq">Procesador / Tipo *</label>
+            <input type="text" id="procesadorEq" required placeholder="Ej: Snapdragon 8 Gen 2" />
+          </div>
+          <div class="form-group">
+            <label for="marcaEq">Marca</label>
+            <input type="text" id="marcaEq" placeholder="Ej: Samsung" />
+          </div>
+          <div class="form-group">
+            <label for="modeloEq">Modelo</label>
+            <input type="text" id="modeloEq" placeholder="Ej: Galaxy S23" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-success">💾 Guardar</button>
+          <button type="button" class="btn btn-secondary" onclick="cerrarFormEquipos()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Categoría</th>
+            <th>Código</th>
+            <th>Capacidad</th>
+            <th>RAM</th>
+            <th>Procesador / Tipo</th>
+            <th>Marca / Modelo</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaEquipos"></tbody>
+      </table>
+      <div class="empty-msg" id="emptyEq">No hay equipos registrados.</div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MÓDULO 2: COMPRAS Y VENTAS POR KILO
+       ============================================================ -->
+  <div id="tabKilos" class="tab-content">
+    <div class="dashboard">
+      <div class="stat-card">
+        <h4>📥 Total Compras (kg)</h4>
+        <div class="value" id="statKgCompra">0.000 kg</div>
+      </div>
+      <div class="stat-card naranja">
+        <h4>💵 Gasto en Compras</h4>
+        <div class="value" id="statGastoCompra">$0.00</div>
+      </div>
+      <div class="stat-card">
+        <h4>📤 Total Ventas (kg)</h4>
+        <div class="value" id="statKgVenta">0.000 kg</div>
+      </div>
+      <div class="stat-card verde">
+        <h4>💵 Ingreso por Ventas</h4>
+        <div class="value" id="statIngresoVenta">$0.00</div>
+      </div>
+      <div class="stat-card morado">
+        <h4>📊 Ganancia Neta</h4>
+        <div class="value" id="statGanancia">$0.00</div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="busquedaKg" placeholder="🔍 Buscar material, proveedor, cliente..." oninput="filtrarKilos()" />
+      <select id="filtroTipoKg" onchange="filtrarKilos()">
+        <option value="">Todos los movimientos</option>
+        <option value="Compra">📥 Compra</option>
+        <option value="Venta">📤 Venta</option>
+      </select>
+      <button class="btn btn-secondary" onclick="limpiarFiltrosKilos()">Limpiar</button>
+      <button class="btn btn-success" onclick="toggleFormKilos()">➕ Nuevo</button>
+      <button class="btn btn-info" onclick="exportarBackup('kilos')">💾 Backup</button>
+      <button class="btn btn-warning" onclick="document.getElementById('fileKg').click()">📂 Restaurar</button>
+      <input type="file" id="fileKg" accept=".json" style="display:none" onchange="importarBackup(event, 'kilos')" />
+    </div>
+
+    <div class="form-section" id="formKilos">
+      <h3 id="formTitleKg" style="margin-bottom:12px; color:#1e3c72;">Nuevo Movimiento</h3>
+      <form onsubmit="guardarKilo(event)">
+        <input type="hidden" id="editIdKg" />
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="tipoKg">Tipo de Movimiento *</label>
+            <select id="tipoKg" required onchange="alCambiarTipoKg()">
+              <option value="Compra">📥 Compra</option>
+              <option value="Venta">📤 Venta</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="materialKg">Material *</label>
+            <input type="text" id="materialKg" required placeholder="Ej: Placas mezcladas / Cobre / Aluminio" />
+          </div>
+          <div class="form-group">
+            <label for="fechaKg">Fecha</label>
+            <input type="date" id="fechaKg" />
+          </div>
+          <div class="form-group">
+            <label for="pesoKg">Peso (kg) *</label>
+            <input type="number" id="pesoKg" required min="0" step="0.001" placeholder="Ej: 12.500" oninput="calcularTotalKg()" />
+          </div>
+          <div class="form-group">
+            <label for="precioKg">Precio por Kilo (MXN) *</label>
+            <input type="number" id="precioKg" required min="0" step="0.01" placeholder="Ej: 350.00" oninput="calcularTotalKg()" />
+          </div>
+          <div class="form-group">
+            <label for="totalKg">Total (MXN)</label>
+            <input type="text" id="totalKg" readonly value="$0.00" />
+          </div>
+          <div class="form-group">
+            <label for="contraparteKg">Proveedor / Cliente</label>
+            <input type="text" id="contraparteKg" placeholder="Ej: Juan Pérez" />
+          </div>
+          <div class="form-group">
+            <label for="notasKg">Notas</label>
+            <input type="text" id="notasKg" placeholder="Observaciones (opcional)" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-success">💾 Guardar</button>
+          <button type="button" class="btn btn-secondary" onclick="cerrarFormKilos()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Tipo</th><th>Fecha</th><th>Material</th><th>Peso (kg)</th>
+            <th>Precio/kg</th><th>Total</th><th>Proveedor/Cliente</th><th>Notas</th><th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tablaKilos"></tbody>
+        <tfoot id="footKilos"></tfoot>
+      </table>
+      <div class="empty-msg" id="emptyKg">No hay movimientos registrados.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========================================================
+   PRECIOS DE REFERENCIA (solo como guía al registrar)
+   ======================================================== */
+const PRECIOS_PLACAS = { 64: 9000, 128: 11000, 256: 13000, 512: 13000 };
+
+/* ========================================================
+   INDEXEDDB - DOS STORES
+   ======================================================== */
+const DB_NAME = 'SistemaInventarioDB';
+const DB_VERSION = 1;
+const STORE_EQ = 'equipos';
+const STORE_KG = 'kilos';
+let db = null;
+
+function abrirDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains(STORE_EQ)) {
+        const s = database.createObjectStore(STORE_EQ, { keyPath: 'id', autoIncrement: true });
+        s.createIndex('codigo', 'codigo', { unique: false });
+        s.createIndex('categoria', 'categoria', { unique: false });
+      }
+      if (!database.objectStoreNames.contains(STORE_KG)) {
+        const s = database.createObjectStore(STORE_KG, { keyPath: 'id', autoIncrement: true });
+        s.createIndex('tipo', 'tipo', { unique: false });
+        s.createIndex('material', 'material', { unique: false });
+      }
+    };
+  });
+}
+function dbAdd(store, data) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).add(data);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbPut(store, data) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(data);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbDelete(store, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbClear(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).clear();
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ========================================================
+   UTILIDADES
+   ======================================================== */
+function formatoMXN(n) {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency', currency: 'MXN', minimumFractionDigits: 2
+  }).format(n || 0);
+}
+function formatoKg(n) {
+  return (Number(n) || 0).toFixed(3) + ' kg';
+}
+function escapeHTML(str) {
+  if (str === undefined || str === null) return '';
+  return String(str).replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[m]);
+}
+
+/* ========================================================
+   TABS
+   ======================================================== */
+function cambiarTab(evt, tabId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  evt.currentTarget.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+/* ========================================================
+   MÓDULO 1: CATÁLOGO DE EQUIPOS
+   ======================================================== */
+let equiposCache = [];
+let kilosCache = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await abrirDB();
+    equiposCache = await dbGetAll(STORE_EQ);
+    kilosCache = await dbGetAll(STORE_KG);
+    actualizarDashboardEq();
+    renderizarTablaEq(equiposCache);
+    actualizarDashboardKg();
+    renderizarTablaKg(kilosCache);
+  } catch (err) {
+    mostrarToast('Error al abrir la base de datos: ' + err.message, 'error');
+  }
+});
+
+function actualizarDashboardEq() {
+  let placas = 0, ram = 0, ssd = 0;
+  equiposCache.forEach(r => {
+    if (r.categoria === 'Placa Celular') placas++;
+    else if (r.categoria === 'Memoria RAM') ram++;
+    else if (r.categoria === 'Disco SSD') ssd++;
+  });
+  document.getElementById('statPlacas').textContent = placas;
+  document.getElementById('statRam').textContent = ram;
+  document.getElementById('statSsd').textContent = ssd;
+  document.getElementById('statTotalEq').textContent = equiposCache.length;
+}
+
+function renderizarTablaEq(lista) {
+  const tbody = document.getElementById('tablaEquipos');
+  const empty = document.getElementById('emptyEq');
+  tbody.innerHTML = '';
+
+  if (lista.length === 0) {
+    empty.style.display = 'block';
+    empty.textContent = equiposCache.length === 0
+      ? 'No hay equipos registrados.'
+      : 'No se encontraron resultados.';
+    return;
+  }
+  empty.style.display = 'none';
+
+  lista.forEach(r => {
+    const catClass = r.categoria === 'Memoria RAM' ? 'ram'
+                    : r.categoria === 'Disco SSD' ? 'ssd' : 'placa';
+    const catIcon = r.categoria === 'Memoria RAM' ? '🧠'
+                  : r.categoria === 'Disco SSD' ? '💾' : '📱';
+
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td data-label="Categoría"><span class="badge ${catClass}">${catIcon} ${escapeHTML(r.categoria)}</span></td>
+        <td data-label="Código"><strong>${escapeHTML(r.codigo)}</strong></td>
+        <td data-label="Capacidad">${escapeHTML(String(r.capacidad))} GB</td>
+        <td data-label="RAM">${r.ram ? escapeHTML(String(r.ram)) + ' GB' : '-'}</td>
+        <td data-label="Procesador">${escapeHTML(r.procesador)}</td>
+        <td data-label="Marca/Modelo">${escapeHTML(r.marca || '')}${r.marca && r.modelo ? ' - ' : ''}${escapeHTML(r.modelo || '') || '-'}</td>
+        <td data-label="Acciones">
+          <button class="btn btn-warning" style="padding:5px 9px;font-size:0.75rem" onclick="editarEquipo(${r.id})">✏️</button>
+          <button class="btn btn-danger" style="padding:5px 9px;font-size:0.75rem" onclick="confirmarEliminarEq(${r.id})">🗑️</button>
+        </td>
+      </tr>
+    `);
+  });
+}
+
+function toggleFormEquipos() {
+  const sec = document.getElementById('formEquipos');
+  sec.classList.toggle('active');
+  if (sec.classList.contains('active')) {
+    limpiarFormEq();
+    document.getElementById('formTitleEq').textContent = 'Nuevo Equipo';
+    document.getElementById('codigoEq').focus();
+  }
+}
+function cerrarFormEquipos() {
+  document.getElementById('formEquipos').classList.remove('active');
+  limpiarFormEq();
+}
+function limpiarFormEq() {
+  document.querySelector('#formEquipos form').reset();
+  document.getElementById('editIdEq').value = '';
+  document.getElementById('precioHintEq').textContent = '';
+  alCambiarCategoriaEq();
+}
+function alCambiarCategoriaEq() {
+  const cat = document.getElementById('categoriaEq').value;
+  const ram = document.getElementById('ramEq');
+  const proc = document.getElementById('procesadorEq');
+  if (cat === 'Placa Celular') {
+    ram.disabled = false; ram.placeholder = 'Ej: 6';
+    proc.placeholder = 'Ej: Snapdragon 8 Gen 2';
+  } else if (cat === 'Memoria RAM') {
+    ram.disabled = true; ram.value = '';
+    proc.placeholder = 'Ej: DDR4 / DDR5';
+  } else {
+    ram.disabled = true; ram.value = '';
+    proc.placeholder = 'Ej: NVMe / SATA';
+  }
+  // Sugerencia informativa (no se guarda el precio)
+  const cap = parseInt(document.getElementById('capacidadEq').value);
+  const hint = document.getElementById('precioHintEq');
+  if (cat === 'Placa Celular' && PRECIOS_PLACAS[cap]) {
+    hint.textContent = `💡 Precio de referencia de venta: ${formatoMXN(PRECIOS_PLACAS[cap])}`;
+  } else {
+    hint.textContent = '';
+  }
+}
+
+async function guardarEquipo(e) {
+  e.preventDefault();
+  const id = document.getElementById('editIdEq').value;
+  const categoria = document.getElementById('categoriaEq').value;
+  const codigo = document.getElementById('codigoEq').value.trim();
+  const capacidad = parseInt(document.getElementById('capacidadEq').value);
+  const ram = categoria === 'Placa Celular' ? parseInt(document.getElementById('ramEq').value) || 0 : 0;
+  const procesador = document.getElementById('procesadorEq').value.trim();
+  const marca = document.getElementById('marcaEq').value.trim();
+  const modelo = document.getElementById('modeloEq').value.trim();
+
+  if (!codigo || !procesador || isNaN(capacidad)) {
+    mostrarToast('Complete todos los campos obligatorios', 'error'); return;
+  }
+  const dup = equiposCache.find(r =>
+    r.codigo.toLowerCase() === codigo.toLowerCase() && String(r.id) !== String(id));
+  if (dup) { mostrarToast('Ya existe un equipo con ese código', 'error'); return; }
+
+  const data = { categoria, codigo, capacidad, ram, procesador, marca, modelo };
+  try {
+    if (id) { data.id = parseInt(id); await dbPut(STORE_EQ, data); mostrarToast('Equipo actualizado', 'success'); }
+    else { await dbAdd(STORE_EQ, data); mostrarToast('Equipo guardado', 'success'); }
+    cerrarFormEquipos();
+    equiposCache = await dbGetAll(STORE_EQ);
+    actualizarDashboardEq();
+    filtrarEquipos();
+  } catch (err) { mostrarToast('Error: ' + err.message, 'error'); }
+}
+
+function editarEquipo(id) {
+  const r = equiposCache.find(x => x.id === id); if (!r) return;
+  document.getElementById('editIdEq').value = r.id;
+  document.getElementById('categoriaEq').value = r.categoria || 'Placa Celular';
+  document.getElementById('codigoEq').value = r.codigo;
+  document.getElementById('capacidadEq').value = r.capacidad;
+  document.getElementById('ramEq').value = r.ram || '';
+  document.getElementById('procesadorEq').value = r.procesador;
+  document.getElementById('marcaEq').value = r.marca || '';
+  document.getElementById('modeloEq').value = r.modelo || '';
+  alCambiarCategoriaEq();
+  document.getElementById('formTitleEq').textContent = 'Editar Equipo';
+  document.getElementById('formEquipos').classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function confirmarEliminarEq(id) {
+  const r = equiposCache.find(x => x.id === id); if (!r) return;
+  if (!confirm(`¿Eliminar el equipo "${r.codigo}"?`)) return;
+  try {
+    await dbDelete(STORE_EQ, id);
+    mostrarToast('Equipo eliminado', 'success');
+    equiposCache = await dbGetAll(STORE_EQ);
+    actualizarDashboardEq();
+    filtrarEquipos();
+  } catch (err) { mostrarToast('Error: ' + err.message, 'error'); }
+}
+
+function filtrarEquipos() {
+  const txt = document.getElementById('busquedaEq').value.trim().toLowerCase();
+  const cat = document.getElementById('filtroCategoriaEq').value;
+  let lista = equiposCache;
+  if (cat) lista = lista.filter(r => r.categoria === cat);
+  if (txt) lista = lista.filter(r =>
+    (r.codigo && r.codigo.toLowerCase().includes(txt)) ||
+    (r.procesador && r.procesador.toLowerCase().includes(txt)) ||
+    (r.marca && r.marca.toLowerCase().includes(txt)) ||
+    (r.modelo && r.modelo.toLowerCase().includes(txt)));
+  renderizarTablaEq(lista);
+}
+function limpiarFiltrosEquipos() {
+  document.getElementById('busquedaEq').value = '';
+  document.getElementById('filtroCategoriaEq').value = '';
+  renderizarTablaEq(equiposCache);
+}
+
+/* ========================================================
+   MÓDULO 2: COMPRAS Y VENTAS POR KILO
+   ======================================================== */
+function actualizarDashboardKg() {
+  let kgCompra = 0, gasto = 0, kgVenta = 0, ingreso = 0;
+  kilosCache.forEach(r => {
+    const peso = Number(r.peso) || 0;
+    const tot = peso * (Number(r.precio) || 0);
+    if (r.tipo === 'Compra') { kgCompra += peso; gasto += tot; }
+    else if (r.tipo === 'Venta') { kgVenta += peso; ingreso += tot; }
+  });
+  const ganancia = ingreso - gasto;
+  document.getElementById('statKgCompra').textContent = formatoKg(kgCompra);
+  document.getElementById('statGastoCompra').textContent = formatoMXN(gasto);
+  document.getElementById('statKgVenta').textContent = formatoKg(kgVenta);
+  document.getElementById('statIngresoVenta').textContent = formatoMXN(ingreso);
+  const gEl = document.getElementById('statGanancia');
+  gEl.textContent = formatoMXN(ganancia);
+  gEl.style.color = ganancia < 0 ? '#dc3545' : '#6f42c1';
+}
+
+function renderizarTablaKg(lista) {
+  const tbody = document.getElementById('tablaKilos');
+  const tfoot = document.getElementById('footKilos');
+  const empty = document.getElementById('emptyKg');
+  tbody.innerHTML = ''; tfoot.innerHTML = '';
+
+  if (lista.length === 0) {
+    empty.style.display = 'block';
+    empty.textContent = kilosCache.length === 0
+      ? 'No hay movimientos registrados.'
+      : 'No se encontraron resultados.';
+    return;
+  }
+  empty.style.display = 'none';
+
+  let kgC = 0, gastoC = 0, kgV = 0, ingresoV = 0;
+
+  lista.forEach(r => {
+    const peso = Number(r.peso) || 0;
+    const precio = Number(r.precio) || 0;
+    const tot = peso * precio;
+    if (r.tipo === 'Compra') { kgC += peso; gastoC += tot; }
+    else { kgV += peso; ingresoV += tot; }
+
+    const tipoClass = r.tipo === 'Compra' ? 'compra' : 'venta';
+    const tipoIcon = r.tipo === 'Compra' ? '📥' : '📤';
+
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td data-label="Tipo"><span class="badge ${tipoClass}">${tipoIcon} ${escapeHTML(r.tipo)}</span></td>
+        <td data-label="Fecha">${escapeHTML(r.fecha || '-')}</td>
+        <td data-label="Material"><strong>${escapeHTML(r.material)}</strong></td>
+        <td data-label="Peso">${formatoKg(peso)}</td>
+        <td data-label="Precio/kg" class="precio">${formatoMXN(precio)}</td>
+        <td data-label="Total" class="total">${formatoMXN(tot)}</td>
+        <td data-label="Proveedor/Cliente">${escapeHTML(r.contraparte || '-')}</td>
+        <td data-label="Notas">${escapeHTML(r.notas || '-')}</td>
+        <td data-label="Acciones">
+          <button class="btn btn-warning" style="padding:5px 9px;font-size:0.75rem" onclick="editarKilo(${r.id})">✏️</button>
+          <button class="btn btn-danger" style="padding:5px 9px;font-size:0.75rem" onclick="confirmarEliminarKg(${r.id})">🗑️</button>
+        </td>
+      </tr>
+    `);
+  });
+
+  tfoot.innerHTML = `
+    <tr>
+      <td colspan="3" style="text-align:right">COMPRAS: ${formatoKg(kgC)}</td>
+      <td colspan="2" style="text-align:right">Gasto: ${formatoMXN(gastoC)}</td>
+      <td colspan="4" style="text-align:right">VENTAS: ${formatoKg(kgV)} · Ingreso: ${formatoMXN(ingresoV)}</td>
+    </tr>
+    <tr>
+      <td colspan="9" style="text-align:right; background:#e8f0ff; color:#6f42c1">
+        GANANCIA NETA: ${formatoMXN(ingresoV - gastoC)}
+      </td>
+    </tr>
+  `;
+}
+
+function toggleFormKilos() {
+  const sec = document.getElementById('formKilos');
+  sec.classList.toggle('active');
+  if (sec.classList.contains('active')) {
+    limpiarFormKg();
+    document.getElementById('formTitleKg').textContent = 'Nuevo Movimiento';
+    document.getElementById('fechaKg').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('materialKg').focus();
+  }
+}
+function cerrarFormKilos() {
+  document.getElementById('formKilos').classList.remove('active');
+  limpiarFormKg();
+}
+function limpiarFormKg() {
+  document.querySelector('#formKilos form').reset();
+  document.getElementById('editIdKg').value = '';
+  document.getElementById('totalKg').value = '$0.00';
+  document.getElementById('fechaKg').value = '';
+}
+function alCambiarTipoKg() {
+  const tipo = document.getElementById('tipoKg').value;
+  const label = document.getElementById('contraparteKg');
+  label.placeholder = tipo === 'Compra' ? 'Ej: Proveedor Juan' : 'Ej: Cliente María';
+}
+function calcularTotalKg() {
+  const peso = Number(document.getElementById('pesoKg').value) || 0;
+  const precio = Number(document.getElementById('precioKg').value) || 0;
+  document.getElementById('totalKg').value = formatoMXN(peso * precio);
+}
+
+async function guardarKilo(e) {
+  e.preventDefault();
+  const id = document.getElementById('editIdKg').value;
+  const tipo = document.getElementById('tipoKg').value;
+  const material = document.getElementById('materialKg').value.trim();
+  const fecha = document.getElementById('fechaKg').value || new Date().toISOString().slice(0, 10);
+  const peso = parseFloat(document.getElementById('pesoKg').value);
+  const precio = parseFloat(document.getElementById('precioKg').value);
+  const contraparte = document.getElementById('contraparteKg').value.trim();
+  const notas = document.getElementById('notasKg').value.trim();
+
+  if (!material || isNaN(peso) || isNaN(precio) || peso <= 0 || precio <= 0) {
+    mostrarToast('Verifique material, peso y precio', 'error'); return;
+  }
+
+  const data = { tipo, material, fecha, peso, precio, contraparte, notas };
+  try {
+    if (id) { data.id = parseInt(id); await dbPut(STORE_KG, data); mostrarToast('Movimiento actualizado', 'success'); }
+    else { await dbAdd(STORE_KG, data); mostrarToast('Movimiento guardado', 'success'); }
+    cerrarFormKilos();
+    kilosCache = await dbGetAll(STORE_KG);
+    actualizarDashboardKg();
+    filtrarKilos();
+  } catch (err) { mostrarToast('Error: ' + err.message, 'error'); }
+}
+
+function editarKilo(id) {
+  const r = kilosCache.find(x => x.id === id); if (!r) return;
+  document.getElementById('editIdKg').value = r.id;
+  document.getElementById('tipoKg').value = r.tipo;
+  document.getElementById('materialKg').value = r.material;
+  document.getElementById('fechaKg').value = r.fecha || '';
+  document.getElementById('pesoKg').value = r.peso;
+  document.getElementById('precioKg').value = r.precio;
+  document.getElementById('contraparteKg').value = r.contraparte || '';
+  document.getElementById('notasKg').value = r.notas || '';
+  alCambiarTipoKg();
+  calcularTotalKg();
+  document.getElementById('formTitleKg').textContent = 'Editar Movimiento';
+  document.getElementById('formKilos').classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function confirmarEliminarKg(id) {
+  const r = kilosCache.find(x => x.id === id); if (!r) return;
+  if (!confirm(`¿Eliminar el movimiento de ${r.tipo} de "${r.material}"?`)) return;
+  try {
+    await dbDelete(STORE_KG, id);
+    mostrarToast('Movimiento eliminado', 'success');
+    kilosCache = await dbGetAll(STORE_KG);
+    actualizarDashboardKg();
+    filtrarKilos();
+  } catch (err) { mostrarToast('Error: ' + err.message, 'error'); }
+}
+
+function filtrarKilos() {
+  const txt = document.getElementById('busquedaKg').value.trim().toLowerCase();
+  const tipo = document.getElementById('filtroTipoKg').value;
+  let lista = kilosCache;
+  if (tipo) lista = lista.filter(r => r.tipo === tipo);
+  if (txt) lista = lista.filter(r =>
+    (r.material && r.material.toLowerCase().includes(txt)) ||
+    (r.contraparte && r.contraparte.toLowerCase().includes(txt)) ||
+    (r.notas && r.notas.toLowerCase().includes(txt)));
+  renderizarTablaKg(lista);
+}
+function limpiarFiltrosKilos() {
+  document.getElementById('busquedaKg').value = '';
+  document.getElementById('filtroTipoKg').value = '';
+  renderizarTablaKg(kilosCache);
+}
+
+/* ========================================================
+   BACKUP / RESTAURAR (por módulo)
+   ======================================================== */
+async function exportarBackup(modulo) {
+  const store = modulo === 'equipos' ? STORE_EQ : STORE_KG;
+  const datos = await dbGetAll(store);
+  if (datos.length === 0) { mostrarToast('No hay datos para respaldar', 'info'); return; }
+
+  const backup = {
+    app: 'SistemaInventario',
+    modulo: modulo,
+    version: DB_VERSION,
+    fecha: new Date().toISOString(),
+    total: datos.length,
+    registros: datos
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fecha = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `backup_${modulo}_${fecha}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  mostrarToast(`Backup ${modulo} creado (${datos.length} registros)`, 'success');
+}
+
+function importarBackup(event, modulo) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.registros || !Array.isArray(data.registros)) throw new Error('Formato inválido');
+
+      const store = modulo === 'equipos' ? STORE_EQ : STORE_KG;
+      const opcion = confirm(
+        `Archivo contiene ${data.registros.length} registros.\n\n` +
+        `Aceptar = REEMPLAZAR todo\nCancelar = AGREGAR`
+      );
+      if (opcion) await dbClear(store);
+
+      let importados = 0, omitidos = 0;
+      const cacheActual = modulo === 'equipos' ? equiposCache : kilosCache;
+
+      for (const reg of data.registros) {
+        delete reg.id;
+        if (!opcion) {
+          const dup = modulo === 'equipos'
+            ? cacheActual.find(r => r.codigo.toLowerCase() === (reg.codigo || '').toLowerCase())
+            : cacheActual.find(r => r.material === reg.material && r.fecha === reg.fecha && r.peso === reg.peso && r.tipo === reg.tipo);
+          if (dup) { omitidos++; continue; }
+        }
+        await dbAdd(store, reg);
+        importados++;
+      }
+
+      if (modulo === 'equipos') {
+        equiposCache = await dbGetAll(STORE_EQ);
+        actualizarDashboardEq();
+        filtrarEquipos();
+      } else {
+        kilosCache = await dbGetAll(STORE_KG);
+        actualizarDashboardKg();
+        filtrarKilos();
+      }
+      mostrarToast(`Restaurado: ${importados} importados, ${omitidos} omitidos`, 'success');
+    } catch (err) {
+      mostrarToast('Error al importar: ' + err.message, 'error');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ========================================================
+   TOAST
+   ======================================================== */
+let toastTimeout;
+function mostrarToast(msg, tipo = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (tipo === 'error' ? 'error' : tipo === 'info' ? 'info' : '');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+</script>
+
+</body>
+</html>
