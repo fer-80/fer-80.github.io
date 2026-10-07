@@ -457,6 +457,7 @@
       <button class="btn btn-success" onclick="toggleFormKilos()">➕ Nuevo</button>
       <button class="btn btn-info" onclick="exportarBackup('kilos')">💾 Backup</button>
       <button class="btn btn-warning" onclick="document.getElementById('fileKg').click()">📂 Restaurar</button>
+      <button class="btn btn-info" onclick="seleccionarCarpetaRespaldo()" title="Respaldo automático en tu disco duro">📁 Carpeta Respaldo</button>
       <input type="file" id="fileKg" accept=".json" style="display:none" onchange="importarBackup(event, 'kilos')" />
     </div>
 
@@ -528,24 +529,40 @@
 
 <script>
 /* ========================================================
-   PRECIOS DE REFERENCIA (solo como guía al registrar)
+   PRECIOS DE REFERENCIA
    ======================================================== */
 const PRECIOS_PLACAS = { 64: 9000, 128: 11000, 256: 13000, 512: 13000 };
 
 /* ========================================================
-   INDEXEDDB - DOS STORES
+   CONFIGURACIÓN DE BASES DE DATOS (3 CAPAS)
    ======================================================== */
 const DB_NAME = 'SistemaInventarioDB';
 const DB_VERSION = 1;
 const STORE_EQ = 'equipos';
 const STORE_KG = 'kilos';
-let db = null;
 
+const LS_KEY_EQ = 'SISCOMEX_equipos_backup';
+const LS_KEY_KG = 'SISCOMEX_kilos_backup';
+
+let db = null;
+let directoryHandle = null; // Para File System Access API
+
+/* ========================================================
+   CAPA 1: INDEXEDDB (almacenamiento principal)
+   ======================================================== */
 function abrirDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onerror = () => reject(req.error);
-    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onsuccess = () => {
+      db = req.result;
+      // Detectar cierre inesperado de conexión
+      db.onclose = () => {
+        mostrarToast('⚠️ Conexión DB cerrada, reconectando...', 'info');
+        setTimeout(() => abrirDB().then(() => refrescarTodo()), 1000);
+      };
+      resolve(db);
+    };
     req.onupgradeneeded = (e) => {
       const database = e.target.result;
       if (!database.objectStoreNames.contains(STORE_EQ)) {
@@ -561,6 +578,7 @@ function abrirDB() {
     };
   });
 }
+
 function dbAdd(store, data) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, 'readwrite');
@@ -603,6 +621,110 @@ function dbClear(store) {
 }
 
 /* ========================================================
+   CAPA 2: LOCALSTORAGE (respaldo automático)
+   ======================================================== */
+function guardarEnLocalStorage(store, datos) {
+  try {
+    const key = store === STORE_EQ ? LS_KEY_EQ : LS_KEY_KG;
+    localStorage.setItem(key, JSON.stringify(datos));
+    console.log(`💾 Respaldo localStorage OK (${datos.length} registros en ${store})`);
+  } catch (e) {
+    console.warn('⚠️ No se pudo guardar en localStorage:', e.message);
+  }
+}
+function leerDeLocalStorage(store) {
+  try {
+    const key = store === STORE_EQ ? LS_KEY_EQ : LS_KEY_KG;
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/* ========================================================
+   CAPA 3: FILE SYSTEM ACCESS API (carpeta en disco)
+   ======================================================== */
+async function seleccionarCarpetaRespaldo() {
+  if (!window.showDirectoryPicker) {
+    mostrarToast('Tu navegador no soporta carpetas locales. Use Chrome/Edge.', 'error');
+    return;
+  }
+  try {
+    directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    await directoryHandle.requestPermission({ mode: 'readwrite' });
+    localStorage.setItem('SISCOMEX_carpeta_ok', 'true');
+    mostrarToast('✅ Carpeta de respaldo configurada', 'success');
+    // Guardar inmediatamente todo
+    await guardarRespaldoArchivo(STORE_EQ, equiposCache);
+    await guardarRespaldoArchivo(STORE_KG, kilosCache);
+  } catch (e) {
+    if (e.name !== 'AbortError') mostrarToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function guardarRespaldoArchivo(store, datos) {
+  if (!directoryHandle) return;
+  try {
+    const perm = await directoryHandle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') {
+      const req = await directoryHandle.requestPermission({ mode: 'readwrite' });
+      if (req !== 'granted') return;
+    }
+    const nombre = store === STORE_EQ ? 'respaldo_equipos.json' : 'respaldo_kilos.json';
+    const fileHandle = await directoryHandle.getFileHandle(nombre, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify({
+      app: 'SISCOMEX',
+      modulo: store,
+      fecha: new Date().toISOString(),
+      total: datos.length,
+      registros: datos
+    }, null, 2));
+    await writable.close();
+    console.log(`📁 Respaldo en disco OK: ${nombre}`);
+  } catch (e) {
+    console.warn('No se pudo escribir en disco:', e.message);
+  }
+}
+
+/* ========================================================
+   SINCRONIZACIÓN: guarda en las 3 capas a la vez
+   ======================================================== */
+async function sincronizarRespaldo(store) {
+  const datos = store === STORE_EQ ? equiposCache : kilosCache;
+  guardarEnLocalStorage(store, datos);
+  await guardarRespaldoArchivo(store, datos);
+}
+
+/* ========================================================
+   RECUPERACIÓN: si IndexedDB está vacía, restaurar desde respaldos
+   ======================================================== */
+async function recuperarSiEsNecesario() {
+  const eqDB = await dbGetAll(STORE_EQ);
+  const kgDB = await dbGetAll(STORE_KG);
+
+  // Equipos
+  if (eqDB.length === 0) {
+    const eqLS = leerDeLocalStorage(STORE_EQ);
+    if (eqLS.length > 0) {
+      console.log('♻️ Restaurando equipos desde localStorage...');
+      for (const r of eqLS) { delete r.id; await dbAdd(STORE_EQ, r); }
+      mostrarToast(`♻️ ${eqLS.length} equipos recuperados`, 'info');
+    }
+  }
+  // Kilos
+  if (kgDB.length === 0) {
+    const kgLS = leerDeLocalStorage(STORE_KG);
+    if (kgLS.length > 0) {
+      console.log('♻️ Restaurando movimientos desde localStorage...');
+      for (const r of kgLS) { delete r.id; await dbAdd(STORE_KG, r); }
+      mostrarToast(`♻️ ${kgLS.length} movimientos recuperados`, 'info');
+    }
+  }
+}
+
+/* ========================================================
    UTILIDADES
    ======================================================== */
 function formatoMXN(n) {
@@ -631,25 +753,46 @@ function cambiarTab(evt, tabId) {
 }
 
 /* ========================================================
-   MÓDULO 1: CATÁLOGO DE EQUIPOS
+   VARIABLES GLOBALES
    ======================================================== */
 let equiposCache = [];
 let kilosCache = [];
 
+async function refrescarTodo() {
+  equiposCache = await dbGetAll(STORE_EQ);
+  kilosCache = await dbGetAll(STORE_KG);
+  actualizarDashboardEq();
+  renderizarTablaEq(equiposCache);
+  actualizarDashboardKg();
+  renderizarTablaKg(kilosCache);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     await abrirDB();
-    equiposCache = await dbGetAll(STORE_EQ);
-    kilosCache = await dbGetAll(STORE_KG);
-    actualizarDashboardEq();
-    renderizarTablaEq(equiposCache);
-    actualizarDashboardKg();
-    renderizarTablaKg(kilosCache);
+    await recuperarSiEsNecesario();
+    await refrescarTodo();
+
+    // Restaurar carpeta si estaba configurada
+    if (localStorage.getItem('SISCOMEX_carpeta_ok') === 'true' && window.showDirectoryPicker) {
+      try {
+        // No podemos recuperar el handle sin gesto del usuario, pero avisamos
+        console.log('ℹ️ Hay una carpeta de respaldo configurada. Vuelva a seleccionarla si desea reactivarla.');
+      } catch (e) {}
+    }
+
+    // Guardar respaldo inicial por si acaso
+    await sincronizarRespaldo(STORE_EQ);
+    await sincronizarRespaldo(STORE_KG);
+
   } catch (err) {
     mostrarToast('Error al abrir la base de datos: ' + err.message, 'error');
   }
 });
 
+/* ========================================================
+   MÓDULO 1: CATÁLOGO DE EQUIPOS
+   ======================================================== */
 function actualizarDashboardEq() {
   let placas = 0, ram = 0, ssd = 0;
   equiposCache.forEach(r => {
@@ -733,7 +876,6 @@ function alCambiarCategoriaEq() {
     ram.disabled = true; ram.value = '';
     proc.placeholder = 'Ej: NVMe / SATA';
   }
-  // Sugerencia informativa (no se guarda el precio)
   const cap = parseInt(document.getElementById('capacidadEq').value);
   const hint = document.getElementById('precioHintEq');
   if (cat === 'Placa Celular' && PRECIOS_PLACAS[cap]) {
@@ -769,6 +911,7 @@ async function guardarEquipo(e) {
     equiposCache = await dbGetAll(STORE_EQ);
     actualizarDashboardEq();
     filtrarEquipos();
+    await sincronizarRespaldo(STORE_EQ); // 🔥 RESPALDO AUTOMÁTICO
   } catch (err) { mostrarToast('Error: ' + err.message, 'error'); }
 }
 
@@ -797,6 +940,7 @@ async function confirmarEliminarEq(id) {
     equiposCache = await dbGetAll(STORE_EQ);
     actualizarDashboardEq();
     filtrarEquipos();
+    await sincronizarRespaldo(STORE_EQ); // 🔥 RESPALDO AUTOMÁTICO
   } catch (err) { mostrarToast('Error: ' + err.message, 'error'); }
 }
 
@@ -952,6 +1096,7 @@ async function guardarKilo(e) {
     kilosCache = await dbGetAll(STORE_KG);
     actualizarDashboardKg();
     filtrarKilos();
+    await sincronizarRespaldo(STORE_KG); // 🔥 RESPALDO AUTOMÁTICO
   } catch (err) { mostrarToast('Error: ' + err.message, 'error'); }
 }
 
@@ -981,6 +1126,7 @@ async function confirmarEliminarKg(id) {
     kilosCache = await dbGetAll(STORE_KG);
     actualizarDashboardKg();
     filtrarKilos();
+    await sincronizarRespaldo(STORE_KG); // 🔥 RESPALDO AUTOMÁTICO
   } catch (err) { mostrarToast('Error: ' + err.message, 'error'); }
 }
 
@@ -1002,7 +1148,7 @@ function limpiarFiltrosKilos() {
 }
 
 /* ========================================================
-   BACKUP / RESTAURAR (por módulo)
+   BACKUP MANUAL (JSON)
    ======================================================== */
 async function exportarBackup(modulo) {
   const store = modulo === 'equipos' ? STORE_EQ : STORE_KG;
@@ -1010,7 +1156,7 @@ async function exportarBackup(modulo) {
   if (datos.length === 0) { mostrarToast('No hay datos para respaldar', 'info'); return; }
 
   const backup = {
-    app: 'SistemaInventario',
+    app: 'SISCOMEX',
     modulo: modulo,
     version: DB_VERSION,
     fecha: new Date().toISOString(),
@@ -1062,10 +1208,12 @@ function importarBackup(event, modulo) {
         equiposCache = await dbGetAll(STORE_EQ);
         actualizarDashboardEq();
         filtrarEquipos();
+        await sincronizarRespaldo(STORE_EQ);
       } else {
         kilosCache = await dbGetAll(STORE_KG);
         actualizarDashboardKg();
         filtrarKilos();
+        await sincronizarRespaldo(STORE_KG);
       }
       mostrarToast(`Restaurado: ${importados} importados, ${omitidos} omitidos`, 'success');
     } catch (err) {
